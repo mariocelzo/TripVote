@@ -1,0 +1,39 @@
+# Runtime dependencies — TripVote backend
+# Pin alle versioni minor per stabilità, lasciamo libere le patch.
+
+fastapi==0.115.*
+uvicorn[standard]==0.30.*
+
+# Settings & validation
+pydantic==2.9.*
+pydantic-settings==2.5.*
+
+# Auth — verify JWT Supabase
+PyJWT==2.9.*
+cryptography==43.*
+
+# Supabase client (service role calls)
+supabase==2.8.*
+
+# HTTP client async (scraping)
+httpx==0.27.*
+beautifulsoup4==4.12.*
+opengraph-py3==0.71
+lxml==5.3.*
+
+# Redis (Upstash compatible)
+redis[hiredis]==5.1.*
+
+# Email
+sendgrid==6.11.*
+
+# Observability
+sentry-sdk[fastapi]==2.14.*
+structlog==24.4.*
+
+# Cron in-process
+APScheduler==3.10.*
+
+# Utility
+orjson==3.10.*           # faster JSON
+python-dateutil==2.9.*

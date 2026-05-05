@@ -1,0 +1,52 @@
+# =====================================================================
+# TripVote — production stack (gira sul Droplet DigitalOcean)
+# Path: /opt/tripvote/docker-compose.yml
+# Build & push delle immagini → GitHub Actions
+# =====================================================================
+
+services:
+  api:
+    image: ghcr.io/${GITHUB_OWNER:-CHANGE_ME}/tripvote-api:latest
+    container_name: tripvote-api
+    restart: unless-stopped
+    env_file: /opt/tripvote/.env
+    ports:
+      - "127.0.0.1:8000:8000"   # solo locale, Caddy proxa verso questo
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - tripvote_net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: tripvote-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks:
+      - tripvote_net
+
+networks:
+  tripvote_net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

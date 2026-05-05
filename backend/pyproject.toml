@@ -1,0 +1,74 @@
+[project]
+name = "tripvote-backend"
+version = "0.1.0"
+description = "TripVote — collaborative trip planning, backend API"
+requires-python = ">=3.12"
+
+# =====================================================================
+# Ruff — linting + formatting (sostituisce black, isort, flake8)
+# =====================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "UP",   # pyupgrade
+    "N",    # pep8 naming
+    "S",    # bandit (security)
+    "A",    # builtins shadowing
+    "RUF",  # ruff-specific
+    "ASYNC",# async best practices
+]
+ignore = [
+    "S101",  # assert ok in test
+    "B008",  # FastAPI usa Depends() come default
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]   # ok hardcoded password in test
+
+[tool.ruff.format]
+quote-style = "double"
+
+# =====================================================================
+# Pytest
+# =====================================================================
+[tool.pytest.ini_options]
+minversion = "8.0"
+asyncio_mode = "auto"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+markers = [
+    "integration: tests che richiedono Supabase locale o Redis",
+    "slow: tests > 1s",
+]
+
+# =====================================================================
+# Coverage
+# =====================================================================
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__main__.py", "app/core/sentry.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 70
+
+# =====================================================================
+# Mypy (opzionale, lo accendiamo gradualmente)
+# =====================================================================
+[tool.mypy]
+python_version = "3.12"
+strict_optional = true
+warn_unused_ignores = true
+warn_return_any = true
+ignore_missing_imports = true   # supabase-py non ha buoni stub

@@ -1,0 +1,42 @@
+# =====================================================================
+# TripVote — reverse proxy + TLS automatico
+# Path sul Droplet: /opt/tripvote/Caddyfile
+# Caddy gestisce Let's Encrypt da solo, niente certbot.
+# =====================================================================
+
+api.tripvote.me {
+    # Reverse proxy verso il container FastAPI
+    reverse_proxy api:8000 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Compressione
+    encode gzip zstd
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options    "nosniff"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "geolocation=(), microphone=(), camera=()"
+        # rimuove l'header che svela la versione di Caddy
+        -Server
+    }
+
+    # Limita la dimensione del body (es. webhook Supabase)
+    request_body {
+        max_size 1MB
+    }
+
+    # Log strutturati JSON
+    log {
+        output stdout
+        format json
+        level INFO
+    }
+}
+
+# Reindirizza http → https automaticamente (Caddy lo fa già di default)
+# Non serve un blocco esplicito.
