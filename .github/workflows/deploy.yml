@@ -97,17 +97,34 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
-          envs: GITHUB_OWNER
           script: |
             set -euo pipefail
-            cd /opt/tripvote
+            mkdir -p /opt/tripvote
+
+            # Scrivi il .env dal valore dei GitHub Secrets — mai su git
+            cat > /opt/tripvote/.env << 'ENVEOF'
+            ENV=production
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            SUPABASE_JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }}
+            SUPABASE_WEBHOOK_SECRET=${{ secrets.SUPABASE_WEBHOOK_SECRET }}
+            REDIS_URL=${{ secrets.REDIS_URL }}
+            SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
+            SENDGRID_FROM_EMAIL=${{ secrets.SENDGRID_FROM_EMAIL }}
+            SENTRY_DSN=${{ secrets.SENTRY_DSN }}
+            SENTRY_ENVIRONMENT=production
+            CRON_SECRET=${{ secrets.CRON_SECRET }}
+            APP_VERSION=${{ github.sha }}
+            ENVEOF
+
+            chmod 600 /opt/tripvote/.env
 
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             export GITHUB_OWNER=${{ github.repository_owner }}
 
-            docker compose pull api
-            docker compose up -d api
+            docker compose -f /opt/tripvote/docker-compose.yml pull api
+            docker compose -f /opt/tripvote/docker-compose.yml up -d api
             docker image prune -f
 
             # Health check (max 30s)
@@ -121,5 +138,5 @@ jobs:
             done
 
             echo "❌ Health check failed after 10 attempts"
-            docker compose logs --tail=100 api
+            docker compose -f /opt/tripvote/docker-compose.yml logs --tail=100 api
             exit 1
