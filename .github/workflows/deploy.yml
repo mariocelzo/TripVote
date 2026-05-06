@@ -106,8 +106,8 @@ jobs:
             ENV=production
             SUPABASE_URL=${{ secrets.SUPABASE_URL }}
             SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-            SUPABASE_JWT_SECRET=${{ secrets.SUPABASE_JWT_SECRET }}
             SUPABASE_WEBHOOK_SECRET=${{ secrets.SUPABASE_WEBHOOK_SECRET }}
+            CLERK_JWKS_URL=${{ secrets.CLERK_JWKS_URL }}
             REDIS_URL=${{ secrets.REDIS_URL }}
             SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
             SENDGRID_FROM_EMAIL=${{ secrets.SENDGRID_FROM_EMAIL }}

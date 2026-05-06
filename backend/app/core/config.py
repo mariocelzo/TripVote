@@ -17,11 +17,15 @@ class Settings(BaseSettings):
     # Ambiente
     ENV: str = "production"
 
-    # Supabase
+    # Supabase (DB + storage + realtime — auth gestita da Clerk)
     SUPABASE_URL: str
     SUPABASE_SERVICE_ROLE_KEY: str
-    SUPABASE_JWT_SECRET: str
     SUPABASE_WEBHOOK_SECRET: str = ""
+
+    # Clerk — auth provider. JWKS URL per verificare i JWT del FE.
+    # Trovalo su: Clerk Dashboard → API Keys → Advanced → JWKS URL
+    # Formato: https://<your-clerk-id>.clerk.accounts.dev/.well-known/jwks.json
+    CLERK_JWKS_URL: str
 
     # Redis
     REDIS_URL: str
