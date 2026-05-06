@@ -1,4 +1,5 @@
 """Test del service email con SendGrid mockato."""
+
 from unittest.mock import MagicMock, patch
 
 import pytest

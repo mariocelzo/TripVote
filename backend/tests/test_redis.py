@@ -1,4 +1,5 @@
 """Test del client Redis: init, close, get_redis."""
+
 from unittest.mock import AsyncMock, patch
 
 import pytest

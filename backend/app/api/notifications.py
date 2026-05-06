@@ -54,22 +54,12 @@ async def send_invite_email(
         raise HTTPException(status_code=403, detail="Solo l'owner può inviare inviti")
 
     board = (
-        sb.table("boards")
-        .select("title, invite_token")
-        .eq("id", body.board_id)
-        .single()
-        .execute()
+        sb.table("boards").select("title, invite_token").eq("id", body.board_id).single().execute()
     )
     if not board.data:
         raise HTTPException(status_code=404, detail="Board non trovata")
 
-    profile = (
-        sb.table("profiles")
-        .select("display_name")
-        .eq("id", user["id"])
-        .single()
-        .execute()
-    )
+    profile = sb.table("profiles").select("display_name").eq("id", user["id"]).single().execute()
     sender_name = profile.data["display_name"] if profile.data else user.get("email", "Un amico")
 
     sent, failed = await send_invite(

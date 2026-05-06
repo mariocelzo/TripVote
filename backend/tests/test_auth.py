@@ -45,6 +45,7 @@ def _mock_jwks(monkeypatch):
 
     # Resetta la cache lru_cache e sostituisce con il mock
     import app.core.auth as auth_mod
+
     auth_mod._get_jwks_client.cache_clear()
     monkeypatch.setattr(auth_mod, "_get_jwks_client", lambda: mock_client)
 

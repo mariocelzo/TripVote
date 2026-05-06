@@ -1,0 +1,14 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/internal/cron/close-expired-boards",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

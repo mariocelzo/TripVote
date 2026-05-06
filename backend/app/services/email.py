@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 def _get_sendgrid_client() -> Any:
     """Lazy import SendGrid per non bloccare il startup se non configurato."""
     from sendgrid import SendGridAPIClient
+
     return SendGridAPIClient(settings.SENDGRID_API_KEY)
 
 

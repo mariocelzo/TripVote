@@ -1,4 +1,4 @@
-# Endpoint interni: chiamati solo da Database Webhooks Supabase e dal cron APScheduler.
+# Endpoint interni: chiamati solo da Database Webhooks Supabase e da Vercel Cron Jobs.
 # Protetti da header secret, mai esposti nel frontend.
 import asyncio
 import logging
@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 class SupabaseWebhookPayload(BaseModel):
-    type: str          # INSERT | UPDATE | DELETE
+    type: str  # INSERT | UPDATE | DELETE
     table: str
     schema_: str | None = None  # "schema" è keyword Python → alias
     record: dict | None = None
@@ -131,7 +131,7 @@ async def invalidate_vote_cache(payload: SupabaseWebhookPayload) -> dict:
 async def close_expired_boards() -> dict:
     """
     Chiude tutte le board con end_date < oggi e status = 'open'.
-    Chiamato da APScheduler ogni notte alle 3:00 UTC.
+    Chiamato da Vercel Cron ogni notte alle 3:00 UTC (schedule in vercel.json).
     """
     sb = get_supabase_admin()
     today = date.today().isoformat()

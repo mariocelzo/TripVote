@@ -2,9 +2,6 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-import httpx
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,42 +16,21 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Avvio e spegnimento controllati delle risorse (Redis, Sentry, APScheduler)."""
+    """
+    Avvio e spegnimento controllati delle risorse (Redis, Sentry).
+    Il cron notturno è gestito da Vercel Cron Jobs → chiama
+    POST /internal/cron/close-expired-boards con Authorization Bearer.
+    """
     init_sentry(
         dsn=settings.SENTRY_DSN,
         environment=settings.SENTRY_ENVIRONMENT,
         release=os.getenv("APP_VERSION", "dev"),
     )
     await init_redis()
-
-    # Cron notturno: chiude le board scadute ogni notte alle 3:00 UTC.
-    # Chiama l'endpoint interno invece di eseguire la logica direttamente,
-    # così il ciclo auth/logging è lo stesso delle richieste normali.
-    scheduler = AsyncIOScheduler()
-
-    async def _trigger_close_expired() -> None:
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    "http://localhost:8000/internal/cron/close-expired-boards",
-                    headers={"x-cron-secret": settings.CRON_SECRET},
-                    timeout=30.0,
-                )
-        except Exception as exc:
-            logger.error("Errore cron close-expired-boards: %s", exc)
-
-    scheduler.add_job(
-        _trigger_close_expired,
-        trigger=CronTrigger(hour=3, minute=0, timezone="UTC"),
-        id="close_expired_boards",
-        replace_existing=True,
-    )
-    scheduler.start()
     logger.info("TripVote API avviata (env=%s)", settings.ENV)
 
     yield
 
-    scheduler.shutdown(wait=False)
     await close_redis()
     logger.info("TripVote API fermata")
 

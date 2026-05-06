@@ -80,7 +80,12 @@ def verify_webhook_secret(x_webhook_secret: str = Header(...)) -> None:
         raise HTTPException(status_code=401, detail="Webhook secret non valido")
 
 
-def verify_cron_secret(x_cron_secret: str = Header(...)) -> None:
-    """Valida l'header X-Cron-Secret dei job schedulati interni."""
-    if x_cron_secret != settings.CRON_SECRET:
+def verify_cron_secret(authorization: str = Header(...)) -> None:
+    """
+    Valida l'header Authorization: Bearer <CRON_SECRET>.
+    Vercel Cron Jobs iniettano automaticamente questo header quando
+    CRON_SECRET è impostato come env var nel progetto Vercel.
+    """
+    expected = f"Bearer {settings.CRON_SECRET}"
+    if authorization != expected:
         raise HTTPException(status_code=401, detail="Cron secret non valido")

@@ -2,20 +2,28 @@
 Test della logica di match — copertura dei 5 esempi di MATCH_LOGIC.md + edge cases.
 Board di riferimento: 6 membri.
 """
+
 from app.services.match import MatchConfig, ProposalVotes, compute_match
 
 MEMBERS_6 = 6
 
 
 def pv(yes: int, maybe: int, no: int, proposal_id: str = "p1") -> ProposalVotes:
-    return ProposalVotes(proposal_id=proposal_id, title="Test", category="hotel",
-                        yes_count=yes, maybe_count=maybe, no_count=no)
+    return ProposalVotes(
+        proposal_id=proposal_id,
+        title="Test",
+        category="hotel",
+        yes_count=yes,
+        maybe_count=maybe,
+        no_count=no,
+    )
 
 
 DEFAULT = MatchConfig()
 
 
 # -------- 5 esempi del documento --------
+
 
 def test_match_case_1():
     """4 Sì, 1 Forse, 0 No su 6 → match (score 0.90, quorum 0.83)."""
@@ -53,6 +61,7 @@ def test_no_match_all_maybe():
 
 # -------- Edge cases --------
 
+
 def test_zero_votes():
     r = compute_match(pv(0, 0, 0), members_count=MEMBERS_6, config=DEFAULT)
     assert r.is_match is False
@@ -74,6 +83,7 @@ def test_idempotency():
 
 # -------- Custom match_config --------
 
+
 def test_custom_config_stricter():
     """Con quorum 0.66, caso 2 (3 sì su 6 = quorum 0.50) non deve fare match."""
     cfg = MatchConfig(quorum_threshold=0.66, score_threshold=0.8)
@@ -92,11 +102,13 @@ def test_negative_weight_clamp():
 
 def test_from_board_config_override():
     """MatchConfig.from_board_config legge correttamente il jsonb di boards."""
-    cfg = MatchConfig.from_board_config({
-        "quorum_threshold": 0.6,
-        "score_threshold": 0.75,
-        "weights": {"yes": 1.0, "maybe": 0.2, "no": 0.0},
-    })
+    cfg = MatchConfig.from_board_config(
+        {
+            "quorum_threshold": 0.6,
+            "score_threshold": 0.75,
+            "weights": {"yes": 1.0, "maybe": 0.2, "no": 0.0},
+        }
+    )
     assert cfg.quorum_threshold == 0.6
     assert cfg.score_threshold == 0.75
     assert cfg.maybe_weight == 0.2

@@ -48,12 +48,7 @@ async def get_board_results(board_id: str) -> BoardResultsResponse:
     )
 
     # Aggregati dalla view proposal_results
-    results_res = (
-        sb.table("proposal_results")
-        .select("*")
-        .eq("board_id", board_id)
-        .execute()
-    )
+    results_res = sb.table("proposal_results").select("*").eq("board_id", board_id).execute()
 
     proposals: list[ProposalResult] = []
     voters_set: set[str] = set()

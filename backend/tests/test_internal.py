@@ -13,7 +13,7 @@ async def client():
         patch("app.core.redis.init_redis", new_callable=AsyncMock),
         patch("app.core.redis.close_redis", new_callable=AsyncMock),
         patch("app.core.supabase.get_supabase_admin"),
-        patch("app.main.AsyncIOScheduler"),
+        patch("app.main.init_sentry"),
     ):
         from app.main import app
 

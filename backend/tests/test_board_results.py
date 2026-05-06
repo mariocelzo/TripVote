@@ -1,4 +1,5 @@
 """Test del service board_results con Supabase e Redis mockati."""
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

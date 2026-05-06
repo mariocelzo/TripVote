@@ -9,6 +9,7 @@ from app.core.config import settings
 @dataclass
 class MatchConfig:
     """Parametri di match — default da env, override per board via match_config jsonb."""
+
     quorum_threshold: float = field(default_factory=lambda: settings.MATCH_QUORUM_THRESHOLD)
     score_threshold: float = field(default_factory=lambda: settings.MATCH_SCORE_THRESHOLD)
     yes_weight: float = field(default_factory=lambda: settings.MATCH_YES_WEIGHT)
@@ -86,10 +87,7 @@ def compute_match(votes: ProposalVotes, members_count: int, config: MatchConfig)
     score = max(0.0, min(1.0, raw_score))
     quorum_ratio = total / members_count
 
-    is_match = (
-        quorum_ratio >= config.quorum_threshold
-        and score >= config.score_threshold
-    )
+    is_match = quorum_ratio >= config.quorum_threshold and score >= config.score_threshold
 
     return MatchResult(
         proposal_id=votes.proposal_id,

@@ -31,9 +31,6 @@ sendgrid==6.11.*
 sentry-sdk[fastapi]==2.14.*
 structlog==24.4.*
 
-# Cron in-process
-APScheduler==3.10.*
-
-# Utility
+# Utility — il cron è gestito da Vercel Cron Jobs (niente APScheduler)
 orjson==3.10.*           # faster JSON
 python-dateutil==2.9.*
