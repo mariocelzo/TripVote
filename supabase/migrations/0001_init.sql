@@ -53,7 +53,7 @@ create table public.boards (
   destination  text,
   start_date   date,
   end_date     date,
-  invite_token text not null unique default encode(gen_random_bytes(16), 'hex'),
+  invite_token text not null unique default encode(extensions.gen_random_bytes(16), 'hex'),
   cover_url    text,
   status       text not null default 'open' check (status in ('open','closed','archived')),
   match_config jsonb,                                  -- override per match (vedi MATCH_LOGIC.md)
