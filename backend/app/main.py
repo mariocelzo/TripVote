@@ -26,7 +26,12 @@ async def lifespan(app: FastAPI):
         environment=settings.SENTRY_ENVIRONMENT,
         release=os.getenv("APP_VERSION", "dev"),
     )
-    await init_redis()
+    # Redis: degrada gracefully su Vercel serverless se la connessione fallisce —
+    # i servizi che usano Redis hanno già il proprio try/except.
+    try:
+        await init_redis()
+    except Exception as exc:
+        logger.warning("Redis non disponibile all'avvio (degraded): %s", exc)
     logger.info("TripVote API avviata (env=%s)", settings.ENV)
 
     yield
