@@ -6,24 +6,31 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Client creato nel lifespan, non al module level, per non aprire connessioni nelle importazioni.
+# Connessione lazy: creata al primo utilizzo, non nel lifespan.
+# Necessario per Vercel serverless dove il lifespan viene eseguito ad ogni
+# cold start e una connessione bloccante causerebbe timeout di startup.
 _redis_client: aioredis.Redis | None = None
 
 
 async def init_redis() -> None:
-    """Apre la connessione Redis. Chiamare nel lifespan di FastAPI."""
+    """
+    Crea il client Redis (senza ping bloccante).
+    Su Vercel serverless viene chiamato nel lifespan ma non aspetta
+    la connessione effettiva — quella avviene al primo comando.
+    """
     global _redis_client
     _redis_client = aioredis.from_url(
         settings.REDIS_URL,
         encoding="utf-8",
         decode_responses=True,
+        socket_connect_timeout=5,
+        socket_timeout=5,
     )
-    await _redis_client.ping()
-    logger.info("Redis connesso")
+    logger.info("Redis client inizializzato (connessione lazy)")
 
 
 async def close_redis() -> None:
-    """Chiude la connessione Redis."""
+    """Chiude il client Redis se aperto."""
     global _redis_client
     if _redis_client:
         await _redis_client.aclose()
@@ -31,7 +38,18 @@ async def close_redis() -> None:
 
 
 def get_redis() -> aioredis.Redis:
-    """Restituisce il client Redis. Lancia RuntimeError se non inizializzato."""
+    """
+    Restituisce il client Redis.
+    Crea il client on-the-fly se non ancora inizializzato
+    (es. primo invocation su Vercel dopo cold start).
+    """
+    global _redis_client
     if _redis_client is None:
-        raise RuntimeError("Redis non inizializzato — chiamare init_redis() nel lifespan")
+        _redis_client = aioredis.from_url(
+            settings.REDIS_URL,
+            encoding="utf-8",
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+        )
     return _redis_client
