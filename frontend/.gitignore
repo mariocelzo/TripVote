@@ -1,0 +1,20 @@
+# Next.js
+.next/
+out/
+build/
+
+# Dependencies
+node_modules/
+.npm
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
