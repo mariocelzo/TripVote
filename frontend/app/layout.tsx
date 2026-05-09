@@ -19,7 +19,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider afterSignOutUrl="/">
+      {/* afterSignOutUrl: redirect a landing dopo logout — configurato qui in v7, non su UserButton */}
       <html lang="it">
         <body>{children}</body>
       </html>
