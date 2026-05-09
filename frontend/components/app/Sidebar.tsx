@@ -5,9 +5,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { TV_BOARDS, TV_ME } from "@/lib/data";
+import { TV_BOARDS } from "@/lib/data";
 import Icon from "@/components/shared/Icon";
-import { Avatar } from "@/components/shared/Avatar";
+import { SidebarUserButton } from "@/components/app/UserButton";
 
 export type AppSection =
   | "board" | "map" | "activity" | "search"
@@ -120,16 +120,9 @@ export default function Sidebar({ activeBoard, setActiveBoard, appSection, setAp
       {/* Profilo + settings pinned bottom */}
       <div style={{ display: "flex", alignItems: "center", gap: 10,
         padding: "12px 8px", borderTop: "1px solid var(--border)" }}>
-        <button onClick={() => setAppSection("profile")} style={{
-          display: "flex", alignItems: "center", gap: 8, flex: 1,
-          textAlign: "left", background: "none", border: "none", cursor: "pointer",
-        }}>
-          <Avatar user={TV_ME} size={30} ring={false} />
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-900)" }}>{TV_ME.name}</div>
-            <div style={{ fontSize: 11, color: "var(--fg-muted)" }}>Il mio profilo</div>
-          </div>
-        </button>
+        {/* SidebarUserButton sostituisce il blocco avatar/nome mock basato su TV_ME
+            e usa Clerk per mostrare l'utente autenticato reale */}
+        <SidebarUserButton onProfile={() => setAppSection("profile")} />
         <button onClick={() => setAppSection("settings")} style={{
           width: 32, height: 32, borderRadius: "var(--radius-sm)",
           background: "transparent", border: "none", cursor: "pointer",
