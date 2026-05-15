@@ -31,7 +31,7 @@ def _decode_token(token: str) -> dict:
             options={"verify_aud": False},
         )
         return {
-            "id": payload["sub"],            # UUID utente Supabase
+            "id": payload["sub"],  # UUID utente Supabase
             "email": payload.get("email", ""),
             "role": payload.get("role", "authenticated"),
         }

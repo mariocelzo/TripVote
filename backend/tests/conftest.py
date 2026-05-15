@@ -6,35 +6,37 @@ import time
 import jwt
 import pytest
 
+# Secret di test allineato con test_auth.py
+_TEST_JWT_SECRET = "test-supabase-jwt-secret-32chars!!"
+
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-key")
-os.environ.setdefault("CLERK_JWKS_URL", "https://test.clerk.accounts.dev/.well-known/jwks.json")
+os.environ.setdefault("SUPABASE_JWT_SECRET", _TEST_JWT_SECRET)
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
 os.environ.setdefault("ENV", "development")
 os.environ.setdefault("SUPABASE_WEBHOOK_SECRET", "test-webhook-secret")
 os.environ.setdefault("CRON_SECRET", "test-cron-secret")
 
 
-def make_jwt(user_id: str = "user_test123", email: str = "test@tripvote.me") -> str:
+def make_jwt(
+    user_id: str = "550e8400-e29b-41d4-a716-446655440000",
+    email: str = "test@tripvote.me",
+) -> str:
     """
-    Genera un JWT RS256 valido per i test usando una chiave effimera.
-    Il JWKS client viene mockato nei test che usano auth.
+    Genera un JWT HS256 valido per i test, firmato con il secret di test.
+    Corrisponde al formato emesso da Supabase Auth.
     """
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.asymmetric import rsa
-
-    private_key = rsa.generate_private_key(
-        public_exponent=65537, key_size=2048, backend=default_backend()
-    )
     return jwt.encode(
         {
             "sub": user_id,
             "email": email,
+            "role": "authenticated",
+            "aud": "authenticated",
             "exp": int(time.time()) + 3600,
             "iat": int(time.time()),
         },
-        private_key,
-        algorithm="RS256",
+        _TEST_JWT_SECRET,
+        algorithm="HS256",
     )
 
 
