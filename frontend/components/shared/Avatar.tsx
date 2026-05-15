@@ -1,9 +1,12 @@
 // frontend/components/shared/Avatar.tsx
 // Avatar singolo e AvatarStack — porta da primitives.jsx
+// AvatarStack usa AppContext per risolvere gli userId in oggetti User reali
+
+"use client";
 
 import React from "react";
 import type { User } from "@/lib/types";
-import { TV_USERS } from "@/lib/data";
+import { useAppContext } from "@/components/app/AppContext";
 
 interface AvatarProps {
   user: User;
@@ -44,11 +47,15 @@ interface AvatarStackProps {
 
 /**
  * Stack di avatar sovrapposti.
+ * Risolve gli userId tramite boardUsers dal context (dati reali da Supabase).
  * Se i membri superano max, mostra un "+N" finale.
  */
 export function AvatarStack({ userIds, max = 4, size = 26 }: AvatarStackProps) {
+  // Legge la lista membri board dal context per risolvere gli UUID in User
+  const { boardUsers } = useAppContext();
+
   const users = userIds
-    .map(id => TV_USERS.find(u => u.id === id))
+    .map((id) => boardUsers.find((u) => u.id === id))
     .filter((u): u is User => Boolean(u));
 
   const shown = users.slice(0, max);
@@ -56,7 +63,7 @@ export function AvatarStack({ userIds, max = 4, size = 26 }: AvatarStackProps) {
 
   return (
     <span className="tv-avatars" style={{ alignItems: "center" }}>
-      {shown.map(u => (
+      {shown.map((u) => (
         <Avatar key={u.id} user={u} size={size} ring />
       ))}
       {extra > 0 && (

@@ -1,13 +1,15 @@
 // frontend/components/app/CompactProposalCard.tsx
 // Card compatta nella griglia centrale — porta da web-shell.jsx
+// Usa AppContext per boardUsers (lista membri board con avatar/nome)
 
 "use client";
 
 import React from "react";
 import Image from "next/image";
 import type { Proposal } from "@/lib/types";
-import { TV_USERS, TV_CAT } from "@/lib/data";
+import { TV_CAT } from "@/lib/data";
 import { computeVotes } from "@/lib/utils";
+import { useAppContext } from "./AppContext";
 import { Avatar } from "@/components/shared/Avatar";
 import VoterGroup from "@/components/shared/VoterGroup";
 
@@ -27,9 +29,18 @@ interface Props {
 }
 
 export default function CompactProposalCard({ proposal, selected, onClick }: Props) {
+  // Legge la lista membri board dal context per mostrare avatar autore
+  const { boardUsers } = useAppContext();
+
   const cat      = TV_CAT[proposal.type];
   const v        = computeVotes(proposal);
-  const addedBy  = TV_USERS.find(u => u.id === proposal.addedBy)!;
+  // Cerca l'autore nella lista board; placeholder se non trovato (es. account eliminato)
+  const addedBy  = boardUsers.find((u) => u.id === proposal.addedBy) ?? {
+    id: proposal.addedBy,
+    name: "Utente",
+    initials: "?",
+    color: "#999",
+  };
   const pillKey  = cat.pill.replace("tv-pill--", "");
   const labelColor = PILL_LABEL_COLOR[pillKey] ?? "var(--ink-700)";
 

@@ -1,14 +1,16 @@
 // frontend/components/app/ProposalCard.tsx
 // Card proposta completa per il pannello destro — porta da proposal-card.jsx
 // Contiene: immagine hero, titolo, prezzo, rating, nota, barra voti, bottoni voto con bounce
+// Usa AppContext per me (utente corrente) e boardUsers (lista membri board)
 
 "use client";
 
 import React, { useState } from "react";
 import Image from "next/image";
 import type { Proposal, VoteKind } from "@/lib/types";
-import { TV_USERS, TV_ME, TV_CAT } from "@/lib/data";
+import { TV_CAT } from "@/lib/data";
 import { computeVotes, myVote } from "@/lib/utils";
+import { useAppContext } from "./AppContext";
 import Icon from "@/components/shared/Icon";
 import { Avatar } from "@/components/shared/Avatar";
 import VoteBar from "@/components/shared/VoteBar";
@@ -27,7 +29,7 @@ const SOURCE_COLORS: Record<string, { bg: string; fg: string; text: string }> = 
 };
 
 function SourceLabel({ source }: { source: string }) {
-  const c = SOURCE_COLORS[source] ?? { bg: "#666", fg: "#fff", text: source[0].toUpperCase() };
+  const c = SOURCE_COLORS[source] ?? { bg: "#666", fg: "#fff", text: source[0]?.toUpperCase() ?? "?" };
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6,
       fontSize: 11, color: "var(--fg-muted)", fontFamily: "var(--font-mono)" }}>
@@ -81,10 +83,21 @@ interface ProposalCardProps {
 
 export default function ProposalCard({ proposal, onVote }: ProposalCardProps) {
   const [animKind, setAnimKind] = useState<VoteKind | null>(null);
-  const cat    = TV_CAT[proposal.type];
-  const votes  = computeVotes(proposal);
-  const my     = myVote(proposal, TV_ME.id);
-  const addedBy = TV_USERS.find(u => u.id === proposal.addedBy)!;
+
+  // Legge utente corrente e lista membri board dal context globale
+  const { me, boardUsers } = useAppContext();
+
+  const cat      = TV_CAT[proposal.type];
+  const votes    = computeVotes(proposal);
+  // Usa me?.id con fallback stringa vuota per non matchare nessun voto
+  const my       = myVote(proposal, me?.id ?? "");
+  // Cerca l'autore nella lista utenti board; mostra placeholder se non trovato
+  const addedBy  = boardUsers.find((u) => u.id === proposal.addedBy) ?? {
+    id: proposal.addedBy,
+    name: "Utente",
+    initials: "?",
+    color: "#999",
+  };
 
   function handleVote(kind: VoteKind) {
     setAnimKind(kind);
@@ -202,7 +215,7 @@ export default function ProposalCard({ proposal, onVote }: ProposalCardProps) {
         <div style={{ marginTop: 16 }}>
           <div style={{ display: "flex", alignItems: "center",
             justifyContent: "space-between", marginBottom: 8 }}>
-            <span className="tv-overline">Voti · {votes.total}/7</span>
+            <span className="tv-overline">Voti · {votes.total}/{boardUsers.length || "?"}</span>
             {votes.yes > 0 && (
               <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>
                 {Math.round(votes.pctYes)}% sì
@@ -221,7 +234,7 @@ export default function ProposalCard({ proposal, onVote }: ProposalCardProps) {
 
         {/* Bottoni voto */}
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          {(["yes", "maybe", "no"] as VoteKind[]).map(k => (
+          {(["yes", "maybe", "no"] as VoteKind[]).map((k) => (
             <VoteButton key={k} kind={k}
               count={votes[k]} active={my === k}
               animate={animKind === k} onClick={() => handleVote(k)} />

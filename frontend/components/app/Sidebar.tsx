@@ -1,11 +1,12 @@
 // frontend/components/app/Sidebar.tsx
 // Sidebar sinistra 260px: logo, nav, lista board, profilo pinned — porta da web-shell.jsx
+// Riceve boards come prop da WebShell (dati reali da Supabase)
 
 "use client";
 
 import React from "react";
 import Link from "next/link";
-import { TV_BOARDS } from "@/lib/data";
+import type { Board } from "@/lib/types";
 import Icon from "@/components/shared/Icon";
 import { SidebarUserButton } from "@/components/app/UserButton";
 
@@ -14,6 +15,7 @@ export type AppSection =
   | "itinerary" | "invite" | "profile" | "settings";
 
 interface SidebarProps {
+  boards: Board[];           // lista board dell'utente — da Supabase
   activeBoard: string;
   setActiveBoard: (id: string) => void;
   appSection: AppSection;
@@ -59,7 +61,13 @@ function NavItem({ icon, label, active, badge, onClick }: {
   );
 }
 
-export default function Sidebar({ activeBoard, setActiveBoard, appSection, setAppSection }: SidebarProps) {
+export default function Sidebar({
+  boards,
+  activeBoard,
+  setActiveBoard,
+  appSection,
+  setAppSection,
+}: SidebarProps) {
   return (
     <aside style={{
       background: "var(--surface)", borderRight: "1px solid var(--border)",
@@ -87,12 +95,13 @@ export default function Sidebar({ activeBoard, setActiveBoard, appSection, setAp
       <NavItem icon="calendar" label="Itinerario"     active={appSection === "itinerary"} onClick={() => setAppSection("itinerary")} />
       <NavItem icon="share"    label="Invita gruppo"  active={appSection === "invite"}    onClick={() => setAppSection("invite")} />
 
-      {/* Lista board */}
+      {/* Lista board (dati reali da Supabase) */}
       <div className="tv-overline" style={{ marginTop: 22, marginBottom: 8, padding: "0 8px" }}>
-        // boards · {TV_BOARDS.length}
+        // boards · {boards.length}
       </div>
-      {TV_BOARDS.map(b => (
-        <button key={b.id}
+      {boards.map((b) => (
+        <button
+          key={b.id}
           onClick={() => { setActiveBoard(b.id); setAppSection("board"); }}
           style={{
             padding: "8px 8px", borderRadius: "var(--radius-sm)", width: "100%",
@@ -102,7 +111,8 @@ export default function Sidebar({ activeBoard, setActiveBoard, appSection, setAp
             marginBottom: 2, display: "flex", alignItems: "center",
             gap: 10, textAlign: "left", transition: "background 150ms",
             border: "none", cursor: "pointer",
-          }}>
+          }}
+        >
           {/* Thumbnail cover */}
           <span style={{
             width: 26, height: 26, borderRadius: "var(--radius-xs)", flexShrink: 0,
@@ -120,8 +130,7 @@ export default function Sidebar({ activeBoard, setActiveBoard, appSection, setAp
       {/* Profilo + settings pinned bottom */}
       <div style={{ display: "flex", alignItems: "center", gap: 10,
         padding: "12px 8px", borderTop: "1px solid var(--border)" }}>
-        {/* SidebarUserButton sostituisce il blocco avatar/nome mock basato su TV_ME
-            e usa Clerk per mostrare l'utente autenticato reale */}
+        {/* SidebarUserButton usa Supabase Auth per mostrare l'utente reale */}
         <SidebarUserButton onProfile={() => setAppSection("profile")} />
         <button onClick={() => setAppSection("settings")} style={{
           width: 32, height: 32, borderRadius: "var(--radius-sm)",

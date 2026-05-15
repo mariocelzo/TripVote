@@ -1,11 +1,12 @@
 // frontend/components/pages/InvitePage.tsx
 // Pagina invita gruppo: link copiabile + CTA WhatsApp + lista membri
+// Usa AppContext per boardUsers (lista membri board con avatar/nome reali)
 
 "use client";
 
 import React, { useState } from "react";
 import type { Board } from "@/lib/types";
-import { TV_USERS } from "@/lib/data";
+import { useAppContext } from "@/components/app/AppContext";
 import Icon from "@/components/shared/Icon";
 import { Avatar } from "@/components/shared/Avatar";
 
@@ -13,6 +14,9 @@ interface Props { board: Board; }
 
 export default function InvitePage({ board }: Props) {
   const [copied, setCopied] = useState(false);
+  // Legge i membri board dal context per mostrare avatar e nomi reali
+  const { me, boardUsers } = useAppContext();
+
   const link = `tripvote.app/b/${board.id}-x7k2p9`;
 
   function handleCopy() {
@@ -58,34 +62,31 @@ export default function InvitePage({ board }: Props) {
         </div>
       </div>
 
-      {/* Membri */}
+      {/* Membri — usa boardUsers dal context (dati reali da Supabase) */}
       <div className="tv-card" style={{ padding: 28, marginTop: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: "var(--ink-700)" }}>
-          Membri · {board.members.length}
+          Membri · {boardUsers.length}
         </div>
-        {board.members.map((uid, i) => {
-          const user = TV_USERS.find(u => u.id === uid);
-          if (!user) return null;
-          return (
-            <div key={uid} style={{ display: "flex", alignItems: "center", gap: 12,
-              padding: "10px 0",
-              borderBottom: i < board.members.length - 1 ? "1px solid var(--border)" : "none" }}>
-              <Avatar user={user} size={36} ring={false} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
-                <div style={{ fontSize: 12, color: "var(--fg-muted)" }}>
-                  {uid === "u1" ? "Admin" : "Membro"}
-                </div>
+        {boardUsers.map((user, i) => (
+          <div key={user.id} style={{ display: "flex", alignItems: "center", gap: 12,
+            padding: "10px 0",
+            borderBottom: i < boardUsers.length - 1 ? "1px solid var(--border)" : "none" }}>
+            <Avatar user={user} size={36} ring={false} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
+              <div style={{ fontSize: 12, color: "var(--fg-muted)" }}>
+                {/* Indica "Admin" per l'utente corrente, "Membro" per gli altri */}
+                {user.id === me?.id ? "Admin" : "Membro"}
               </div>
-              {uid !== "u1" && (
-                <button style={{ fontSize: 12, color: "var(--fg-muted)",
-                  background: "none", border: "none", cursor: "pointer" }}>
-                  Rimuovi
-                </button>
-              )}
             </div>
-          );
-        })}
+            {user.id !== me?.id && (
+              <button style={{ fontSize: 12, color: "var(--fg-muted)",
+                background: "none", border: "none", cursor: "pointer" }}>
+                Rimuovi
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

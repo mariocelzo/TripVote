@@ -1,9 +1,10 @@
 // frontend/components/app/GhostBanner.tsx
 // Banner "X ha votato Y su Z" inline sopra i filtri — porta da web-shell.jsx GhostBannerInline
+// Usa AppContext per boardUsers (lista membri board con avatar/nome)
 
 import React from "react";
 import type { VoteKind } from "@/lib/types";
-import { TV_USERS } from "@/lib/data";
+import { useAppContext } from "./AppContext";
 import { Avatar } from "@/components/shared/Avatar";
 
 export interface GhostData {
@@ -13,7 +14,9 @@ export interface GhostData {
 }
 
 export default function GhostBanner({ data }: { data: GhostData }) {
-  const user  = TV_USERS.find(u => u.id === data.userId);
+  // Legge i membri board dal context per trovare il nome/avatar dell'utente
+  const { boardUsers } = useAppContext();
+  const user = boardUsers.find((u) => u.id === data.userId);
   if (!user) return null;
 
   const emoji = data.kind === "yes" ? "👍" : data.kind === "no" ? "👎" : "🤔";

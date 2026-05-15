@@ -1,14 +1,15 @@
 // frontend/components/app/BoardCenter.tsx
 // Colonna centrale: cover hero 200px + stats + filtri scrollabili + griglia proposte
 // Porta da web-shell.jsx BoardCenter
+// Usa AppContext per me (utente corrente) nel calcolo "da votare"
 
 "use client";
 
 import React from "react";
 import Image from "next/image";
 import type { Proposal, Board } from "@/lib/types";
-import { TV_ME } from "@/lib/data";
 import { computeVotes, myVote } from "@/lib/utils";
+import { useAppContext } from "./AppContext";
 import Icon from "@/components/shared/Icon";
 import { AvatarStack } from "@/components/shared/Avatar";
 import CompactProposalCard from "./CompactProposalCard";
@@ -30,11 +31,16 @@ export default function BoardCenter({
   board, proposals, allProposals,
   filter, setFilter, onSelect, selectedId, onAdd, ghostBanner,
 }: BoardCenterProps) {
+  // Usa me dal context per calcolare le proposte "da votare" dell'utente corrente
+  const { me } = useAppContext();
+  const meId = me?.id ?? "";
 
   const stats = {
     total:   allProposals.length,
-    todo:    allProposals.filter(p => !myVote(p, TV_ME.id)).length,
-    decided: allProposals.filter(p => computeVotes(p).total >= 5).length,
+    // Conta le proposte su cui l'utente corrente non ha ancora votato
+    todo:    allProposals.filter((p) => !myVote(p, meId)).length,
+    // Considera "decisa" una proposta con almeno 5 voti totali
+    decided: allProposals.filter((p) => computeVotes(p).total >= 5).length,
   };
 
   const FILTERS = [
@@ -99,7 +105,7 @@ export default function BoardCenter({
             { label: "proposte",  value: stats.total,   color: "var(--ink-900)" },
             { label: "da votare", value: stats.todo,    color: "var(--coral-600)" },
             { label: "decise",    value: stats.decided, color: "var(--teal-600)" },
-          ].map(s => (
+          ].map((s) => (
             <div key={s.label}>
               <span style={{
                 fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600,
@@ -116,7 +122,7 @@ export default function BoardCenter({
         {/* Filtri scrollabili */}
         <div style={{ display: "flex", gap: 8, overflowX: "auto",
           paddingBottom: 8, marginBottom: 4 }}>
-          {FILTERS.map(f => (
+          {FILTERS.map((f) => (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{
               padding: "7px 14px", borderRadius: 99, whiteSpace: "nowrap",
               fontSize: 13, fontWeight: 600, flexShrink: 0, cursor: "pointer",
@@ -149,7 +155,7 @@ export default function BoardCenter({
         gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
         gap: 16,
       }}>
-        {proposals.map(p => (
+        {proposals.map((p) => (
           <CompactProposalCard
             key={p.id}
             proposal={p}

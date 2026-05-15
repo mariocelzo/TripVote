@@ -1,24 +1,36 @@
 // frontend/components/pages/ProfilePage.tsx
 // Profilo utente corrente con stats e lista proposte proprie — porta da web-extras.jsx
+// Usa AppContext per me (utente corrente reale da Supabase)
+// Riceve boards come prop da WebShell per il conteggio board attive
+
+"use client";
 
 import React from "react";
-import type { Proposal } from "@/lib/types";
-import { TV_ME, TV_BOARDS } from "@/lib/data";
+import type { Proposal, Board } from "@/lib/types";
 import { myVote } from "@/lib/utils";
+import { useAppContext } from "@/components/app/AppContext";
 import Icon from "@/components/shared/Icon";
 
-interface Props { proposals: Proposal[]; }
+interface Props {
+  proposals: Proposal[];
+  boards: Board[];    // lista board reali dell'utente
+}
 
-export default function ProfilePage({ proposals }: Props) {
-  const myProps  = proposals.filter(p => p.addedBy === TV_ME.id);
-  const voted    = proposals.filter(p => myVote(p, TV_ME.id)).length;
-  const yesVotes = proposals.filter(p => p.votes.yes.includes(TV_ME.id)).length;
+export default function ProfilePage({ proposals, boards }: Props) {
+  // Legge utente corrente dal context (dati reali da Supabase Auth + profiles)
+  const { me } = useAppContext();
+
+  // Fallback per rendering prima che me sia disponibile
+  const userId  = me?.id ?? "";
+  const myProps  = proposals.filter((p) => p.addedBy === userId);
+  const voted    = proposals.filter((p) => myVote(p, userId)).length;
+  const yesVotes = proposals.filter((p) => p.votes.yes.includes(userId)).length;
 
   const STATS = [
-    { label: "Board attive",  value: TV_BOARDS.length,                                        color: "var(--ink-900)" },
-    { label: "Proposte",      value: myProps.length,                                           color: "var(--coral-600)" },
-    { label: "Voti espressi", value: voted,                                                    color: "var(--indigo-700)" },
-    { label: "% Sì",          value: voted ? `${Math.round(yesVotes / voted * 100)}%` : "—",  color: "var(--teal-600)" },
+    { label: "Board attive",  value: boards.length,                                        color: "var(--ink-900)" },
+    { label: "Proposte",      value: myProps.length,                                        color: "var(--coral-600)" },
+    { label: "Voti espressi", value: voted,                                                 color: "var(--indigo-700)" },
+    { label: "% Sì",          value: voted ? `${Math.round(yesVotes / voted * 100)}%` : "—", color: "var(--teal-600)" },
   ];
 
   return (
@@ -27,24 +39,23 @@ export default function ProfilePage({ proposals }: Props) {
       <div className="tv-card" style={{ padding: "32px 32px 28px", marginBottom: 24,
         position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 80,
-          background: `linear-gradient(135deg, ${TV_ME.color} 0%, var(--coral-700) 100%)` }} />
+          background: `linear-gradient(135deg, ${me?.color ?? "var(--coral-600)"} 0%, var(--coral-700) 100%)` }} />
         <div style={{ position: "relative", display: "flex", gap: 22, alignItems: "flex-end", marginTop: 20 }}>
-          {/* Avatar grande */}
+          {/* Avatar grande con le iniziali reali */}
           <div style={{
             width: 96, height: 96, borderRadius: "var(--radius-full)",
-            background: TV_ME.color, color: "#fff",
+            background: me?.color ?? "var(--coral-600)", color: "#fff",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 38, fontWeight: 700,
             border: "4px solid var(--surface)", boxShadow: "var(--shadow-md)",
-          }}>{TV_ME.initials}</div>
+          }}>{me?.initials ?? "?"}</div>
           <div style={{ flex: 1, marginBottom: 6 }}>
             <h1 style={{ fontFamily: "var(--font-display)", fontSize: 34, fontWeight: 600,
-              letterSpacing: "-0.025em", margin: 0 }}>{TV_ME.name} Bianchi</h1>
+              letterSpacing: "-0.025em", margin: 0 }}>{me?.name ?? "Utente"}</h1>
             <div style={{ fontSize: 13, color: "var(--fg-muted)", marginTop: 4,
               display: "flex", gap: 14, flexWrap: "wrap" }}>
-              <span>@marcob</span><span>·</span>
-              <span>marco.bianchi@gmail.com</span><span>·</span>
-              <span>iscritto da gen 2026</span>
+              {/* Dati profilo statici — TODO: caricare da Supabase profiles */}
+              <span>iscritto a TripVote</span>
             </div>
           </div>
           <button className="tv-btn tv-btn--ghost" style={{ height: 38, padding: "0 14px", fontSize: 13 }}>
@@ -55,7 +66,7 @@ export default function ProfilePage({ proposals }: Props) {
 
       {/* Stats 4 colonne */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 28 }}>
-        {STATS.map(s => (
+        {STATS.map((s) => (
           <div key={s.label} className="tv-card" style={{ padding: "18px 20px" }}>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 36, fontWeight: 600,
               letterSpacing: "-0.025em", color: s.color, lineHeight: 1 }}>{s.value}</div>
