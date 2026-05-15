@@ -3,6 +3,7 @@
 # Supabase firma i token con il JWT secret del progetto (HMAC-SHA256).
 # Il token arriva dal FE come header Authorization: Bearer <token>.
 
+import base64
 import logging
 
 import jwt
@@ -16,6 +17,15 @@ logger = logging.getLogger(__name__)
 _bearer = HTTPBearer(auto_error=False)
 
 
+def _get_jwt_secret() -> bytes:
+    """
+    Supabase memorizza il JWT secret come stringa base64 (visibile in PostgREST config).
+    Prima di usarlo come chiave HMAC va decodificato in bytes, altrimenti la verifica
+    dei token reali emessi da Supabase fallisce.
+    """
+    return base64.b64decode(settings.SUPABASE_JWT_SECRET)
+
+
 def _decode_token(token: str) -> dict:
     """
     Verifica e decodifica un JWT emesso da Supabase (HS256).
@@ -25,7 +35,7 @@ def _decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(
             token,
-            settings.SUPABASE_JWT_SECRET,
+            _get_jwt_secret(),
             algorithms=["HS256"],
             # Supabase imposta audience "authenticated" — disabilitiamo verifica strict
             options={"verify_aud": False},

@@ -8,8 +8,8 @@ import jwt
 import pytest
 from fastapi import HTTPException
 
-# Secret di test — corrisponde a SUPABASE_JWT_SECRET nel conftest
-_TEST_SECRET = "test-supabase-jwt-secret-32chars!!"
+# Secret di test — bytes raw (la versione decodificata di SUPABASE_JWT_SECRET nel conftest)
+_TEST_SECRET = b"test-supabase-jwt-secret-32chars!!"
 
 
 def _make_token(
@@ -18,7 +18,7 @@ def _make_token(
     role: str = "authenticated",
     exp_offset: int = 3600,
 ) -> str:
-    """Genera un JWT HS256 come farebbe Supabase."""
+    """Genera un JWT HS256 come farebbe Supabase (firma con raw bytes del secret)."""
     payload = {
         "sub": sub,
         "email": email,

@@ -6,12 +6,14 @@ import time
 import jwt
 import pytest
 
-# Secret di test allineato con test_auth.py
-_TEST_JWT_SECRET = "test-supabase-jwt-secret-32chars!!"
+# Secret di test come base64 (stesso formato di Supabase production).
+# Il valore decodificato è "test-supabase-jwt-secret-32chars!!"
+_TEST_JWT_SECRET_B64 = "dGVzdC1zdXBhYmFzZS1qd3Qtc2VjcmV0LTMyY2hhcnMhIQ=="
+_TEST_JWT_SECRET_RAW = b"test-supabase-jwt-secret-32chars!!"
 
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-key")
-os.environ.setdefault("SUPABASE_JWT_SECRET", _TEST_JWT_SECRET)
+os.environ.setdefault("SUPABASE_JWT_SECRET", _TEST_JWT_SECRET_B64)
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
 os.environ.setdefault("ENV", "development")
 os.environ.setdefault("SUPABASE_WEBHOOK_SECRET", "test-webhook-secret")
@@ -23,8 +25,8 @@ def make_jwt(
     email: str = "test@tripvote.me",
 ) -> str:
     """
-    Genera un JWT HS256 valido per i test, firmato con il secret di test.
-    Corrisponde al formato emesso da Supabase Auth.
+    Genera un JWT HS256 valido per i test, firmato con i bytes raw del secret
+    (come fa auth._get_jwt_secret() in produzione via base64.b64decode).
     """
     return jwt.encode(
         {
@@ -35,7 +37,7 @@ def make_jwt(
             "exp": int(time.time()) + 3600,
             "iat": int(time.time()),
         },
-        _TEST_JWT_SECRET,
+        _TEST_JWT_SECRET_RAW,
         algorithm="HS256",
     )
 
