@@ -22,6 +22,7 @@ import Sidebar, { type AppSection } from "./Sidebar";
 import BoardCenter from "./BoardCenter";
 import VotingPanel from "./VotingPanel";
 import type { GhostData } from "./GhostBanner";
+import AddProposalModal from "./AddProposalModal";
 
 // Pagine lazy-loaded per ottimizzare il bundle iniziale
 const MapPage       = dynamic(() => import("@/components/pages/MapPage"));
@@ -42,6 +43,8 @@ export default function WebShell() {
   const [filter,         setFilter]          = useState("all");
   const [me,             setMe]              = useState<User | null>(null);
   const [boardUsers,     setBoardUsers]      = useState<User[]>([]);
+  // Controlla la visibilità del modale "Aggiungi proposta"
+  const [showAddModal,   setShowAddModal]    = useState(false);
 
   // Client Supabase — istanza condivisa per tutta la shell
   const supabase = createClient();
@@ -216,7 +219,7 @@ export default function WebShell() {
             setFilter={setFilter}
             onSelect={setActiveProposal}
             selectedId={activeProposal}
-            onAdd={() => {}} // Task 11: AddProposalModal
+            onAdd={() => setShowAddModal(true)}
             ghostBanner={ghostBanner}
           />
         );
@@ -277,6 +280,23 @@ export default function WebShell() {
 
         <VotingPanel proposal={selected} onVote={handleVote} />
       </div>
+
+      {/* Modale aggiunta proposta — montato solo quando showAddModal è true */}
+      {showAddModal && activeBoard && me && (
+        <AddProposalModal
+          boardId={activeBoard}
+          authorId={me.id}
+          onClose={() => setShowAddModal(false)}
+          onProposalAdded={async () => {
+            setShowAddModal(false);
+            // Ricarica le proposte della board corrente dopo l'inserimento
+            if (activeBoard) {
+              const props = await fetchProposals(supabase, activeBoard);
+              setProposals(props);
+            }
+          }}
+        />
+      )}
     </AppContext.Provider>
   );
 }
