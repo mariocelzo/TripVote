@@ -1,10 +1,9 @@
 // frontend/lib/supabase/auth.ts
-// Helper per ottenere il JWT Supabase da passare come Authorization: Bearer al BE.
-// getAuthToken() → lato client (Client Components, hooks)
-// getAuthTokenServer() → lato server (Server Components, Route Handlers, Server Actions)
+// Helper CLIENT-ONLY per ottenere il JWT Supabase.
+// Usare SOLO in Client Components e hooks.
+// Per Server Components / Route Handlers usa @/lib/supabase/auth-server
 
 import { createClient } from "@/lib/supabase/client";
-import { createClient as createServerClient } from "@/lib/supabase/server";
 
 /**
  * Restituisce il JWT access token della sessione corrente (lato client).
@@ -17,16 +16,6 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
  */
 export async function getAuthToken(): Promise<string | null> {
   const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
-}
-
-/**
- * Restituisce il JWT access token lato server (Server Components / Route Handlers).
- * Non usare mai in Client Components — usa getAuthToken() per quelli.
- */
-export async function getAuthTokenServer(): Promise<string | null> {
-  const supabase = await createServerClient();
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token ?? null;
 }
