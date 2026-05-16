@@ -25,11 +25,19 @@ interface BoardCenterProps {
   selectedId: string | null;
   onAdd: () => void;
   ghostBanner: GhostData | null;
+  // Risultati aggregati dal BE: se presenti, usa winners per calcolare "decise" in modo accurato
+  boardResults?: {
+    members_count: number;
+    voters_count: number;
+    quorum_reached: boolean;
+    winners: string[];
+  } | null;
 }
 
 export default function BoardCenter({
   board, proposals, allProposals,
   filter, setFilter, onSelect, selectedId, onAdd, ghostBanner,
+  boardResults,
 }: BoardCenterProps) {
   // Usa me dal context per calcolare le proposte "da votare" dell'utente corrente
   const { me } = useAppContext();
@@ -39,8 +47,11 @@ export default function BoardCenter({
     total:   allProposals.length,
     // Conta le proposte su cui l'utente corrente non ha ancora votato
     todo:    allProposals.filter((p) => !myVote(p, meId)).length,
-    // Considera "decisa" una proposta con almeno 5 voti totali
-    decided: allProposals.filter((p) => computeVotes(p).total >= 5).length,
+    // Se disponibili i risultati BE usa i winners (calcolo accurato lato server);
+    // altrimenti fallback client-side: proposta "decisa" = almeno 5 voti totali
+    decided: boardResults
+      ? boardResults.winners.length
+      : allProposals.filter((p) => computeVotes(p).total >= 5).length,
   };
 
   const FILTERS = [

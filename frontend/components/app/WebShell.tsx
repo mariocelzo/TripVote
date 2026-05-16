@@ -17,6 +17,7 @@ import {
   castVote,
 } from "@/lib/supabase/queries";
 import { applyVote, myVote } from "@/lib/utils";
+import { apiFetch } from "@/lib/api/client";
 import AppContext from "./AppContext";
 import Sidebar, { type AppSection } from "./Sidebar";
 import BoardCenter from "./BoardCenter";
@@ -33,6 +34,26 @@ const ItineraryPage = dynamic(() => import("@/components/pages/ItineraryPage"));
 const InvitePage    = dynamic(() => import("@/components/pages/InvitePage"));
 const SearchPage    = dynamic(() => import("@/components/pages/SearchPage"));
 
+// Tipo che descrive la risposta dell'endpoint GET /boards/{board_id}/results del BE FastAPI.
+// Contiene i risultati aggregati del voto per ogni proposta del board.
+interface BoardResultsResponse {
+  board_id: string;
+  members_count: number;
+  voters_count: number;
+  quorum_reached: boolean;
+  proposals: Array<{
+    proposal_id: string;
+    is_match: boolean;
+    score: number;
+    yes_count: number;
+    maybe_count: number;
+    no_count: number;
+    total_votes: number;
+  }>;
+  // Lista degli ID delle proposte che hanno vinto (is_match = true e quorum raggiunto)
+  winners: string[];
+}
+
 export default function WebShell() {
   const [proposals,      setProposals]      = useState<Proposal[]>([]);
   const [boards,         setBoards]         = useState<Board[]>([]);
@@ -45,6 +66,8 @@ export default function WebShell() {
   const [boardUsers,     setBoardUsers]      = useState<User[]>([]);
   // Controlla la visibilità del modale "Aggiungi proposta"
   const [showAddModal,   setShowAddModal]    = useState(false);
+  // Risultati aggregati del voto provenienti dal BE (null se non ancora caricati o errore)
+  const [boardResults,   setBoardResults]    = useState<BoardResultsResponse | null>(null);
 
   // Client Supabase — istanza condivisa per tutta la shell
   const supabase = createClient();
@@ -108,13 +131,28 @@ export default function WebShell() {
 
     async function loadBoardData() {
       try {
-        // Carica membri e proposte in parallelo per efficienza
-        const [members, props] = await Promise.all([
+        // Carica membri, proposte e risultati BE in parallelo per efficienza.
+        // Il fetch dei risultati non blocca il caricamento: in caso di errore ritorna null.
+        const [members, props, results] = await Promise.all([
           fetchBoardMembers(supabase, activeBoard!),
           fetchProposals(supabase, activeBoard!),
+          apiFetch<BoardResultsResponse>(`/boards/${activeBoard}/results`).catch(() => null),
         ]);
+
         setBoardUsers(members);
-        setProposals(props);
+
+        if (results) {
+          // Costruisce una mappa proposal_id → is_match per un lookup O(1)
+          const matchMap = new Map(results.proposals.map((r) => [r.proposal_id, r.is_match]));
+          // Arricchisce ogni proposta con il flag isMatch proveniente dal BE
+          setProposals(props.map((p) => ({ ...p, isMatch: matchMap.get(p.id) ?? false })));
+          setBoardResults(results);
+        } else {
+          // Se il BE non risponde, mostra le proposte senza dati di match
+          setProposals(props);
+          setBoardResults(null);
+        }
+
         // Resetta la proposta selezionata quando si cambia board
         setActiveProposal(null);
       } catch (err) {
@@ -221,6 +259,8 @@ export default function WebShell() {
             selectedId={activeProposal}
             onAdd={() => setShowAddModal(true)}
             ghostBanner={ghostBanner}
+            // Passa i risultati BE per calcolare stats accurate (winners, quorum, ecc.)
+            boardResults={boardResults}
           />
         );
       case "map":

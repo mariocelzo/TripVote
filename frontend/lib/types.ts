@@ -48,6 +48,8 @@ export interface Proposal {
     no:    string[];
   };
   isNew: boolean;
+  // Campo opzionale proveniente dal BE: true se la proposta ha raggiunto il consenso (match)
+  isMatch?: boolean;
 }
 
 export interface Category {

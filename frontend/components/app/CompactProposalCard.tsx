@@ -61,15 +61,27 @@ export default function CompactProposalCard({ proposal, selected, onClick }: Pro
       <div style={{ position: "relative", height: 140 }}>
         <Image src={proposal.image} alt="" fill style={{ objectFit: "cover" }} sizes="300px" />
 
-        {/* Badge NUOVA */}
-        {proposal.isNew && (
+        {/*
+          Badge sovrapposto alla thumbnail (in alto a sinistra).
+          Priorità: MATCH (dal BE) > NUOVA.
+          - MATCH: proposta che ha raggiunto il consenso secondo il BE (is_match: true)
+          - NUOVA: proposta recentemente aggiunta, mostrata solo se non è già un match
+        */}
+        {proposal.isMatch ? (
+          <span className="tv-pop" style={{
+            position: "absolute", top: 10, left: 10,
+            background: "var(--teal-600)", color: "#fff",
+            fontSize: 10, fontWeight: 700, padding: "3px 9px",
+            borderRadius: 99, letterSpacing: 0.4,
+          }}>MATCH ✓</span>
+        ) : proposal.isNew ? (
           <span className="tv-pop" style={{
             position: "absolute", top: 10, left: 10,
             background: "var(--coral-600)", color: "#fff",
             fontSize: 10, fontWeight: 700, padding: "3px 9px",
             borderRadius: 99, letterSpacing: 0.4,
           }}>NUOVA</span>
-        )}
+        ) : null}
 
         {/* Categoria (in alto a destra) */}
         <span style={{
