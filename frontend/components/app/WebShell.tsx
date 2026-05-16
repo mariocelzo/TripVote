@@ -271,7 +271,8 @@ export default function WebShell() {
           />
         );
       case "activity":
-        return <ActivityPage />;
+        // Passa le proposals già caricate per costruire il feed attività reale
+        return <ActivityPage proposals={proposals} />;
       case "profile":
         return <ProfilePage proposals={proposals} boards={boards} />;
       case "settings":
