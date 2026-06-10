@@ -20,6 +20,7 @@ interface SidebarProps {
   setActiveBoard: (id: string) => void;
   appSection: AppSection;
   setAppSection: (s: AppSection) => void;
+  onNewBoard: () => void;    // apre il modale di creazione board
 }
 
 /* Logo SVG TripVote — aereoplanino coral su cerchio */
@@ -67,6 +68,7 @@ export default function Sidebar({
   setActiveBoard,
   appSection,
   setAppSection,
+  onNewBoard,
 }: SidebarProps) {
   return (
     <aside style={{
@@ -81,7 +83,7 @@ export default function Sidebar({
       </Link>
 
       {/* CTA nuova board */}
-      <button className="tv-btn tv-btn--primary"
+      <button onClick={onNewBoard} className="tv-btn tv-btn--primary"
         style={{ height: 38, fontSize: 13, marginBottom: 18,
           justifyContent: "flex-start", padding: "0 12px" }}>
         <Icon name="plus" size={14} stroke={2.4} /> Nuova board

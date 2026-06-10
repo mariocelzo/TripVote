@@ -19,6 +19,7 @@ export interface Board {
   cover: string;
   members: string[]; // user IDs
   proposalsCount: number;
+  inviteToken?: string; // token per il link di invito (presente per i membri)
 }
 
 export interface Location {

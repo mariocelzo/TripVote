@@ -24,6 +24,7 @@ import BoardCenter from "./BoardCenter";
 import VotingPanel from "./VotingPanel";
 import type { GhostData } from "./GhostBanner";
 import AddProposalModal from "./AddProposalModal";
+import CreateBoardModal from "./CreateBoardModal";
 
 // Pagine lazy-loaded per ottimizzare il bundle iniziale
 const MapPage       = dynamic(() => import("@/components/pages/MapPage"));
@@ -66,6 +67,8 @@ export default function WebShell() {
   const [boardUsers,     setBoardUsers]      = useState<User[]>([]);
   // Controlla la visibilità del modale "Aggiungi proposta"
   const [showAddModal,   setShowAddModal]    = useState(false);
+  // Controlla la visibilità del modale "Nuova board"
+  const [showCreateBoard, setShowCreateBoard] = useState(false);
   // Risultati aggregati del voto provenienti dal BE (null se non ancora caricati o errore)
   const [boardResults,   setBoardResults]    = useState<BoardResultsResponse | null>(null);
 
@@ -187,6 +190,25 @@ export default function WebShell() {
     [me]
   );
 
+  /* ── Ricarica la lista board (dopo creazione o join) e seleziona quella indicata ── */
+  const reloadBoards = useCallback(
+    async (selectId?: string) => {
+      if (!me) return;
+      const loaded = await fetchMyBoards(supabase, me.id);
+      setBoards(loaded);
+      // Seleziona la board richiesta se presente, altrimenti la prima disponibile
+      const target = selectId && loaded.some((b) => b.id === selectId)
+        ? selectId
+        : loaded[0]?.id ?? null;
+      if (target) {
+        setActiveBoard(target);
+        setAppSection("board");
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [me]
+  );
+
   /* ── Filtra proposte in base al filtro attivo ── */
   const filtered = proposals.filter((p) => {
     if (filter === "all") return true;
@@ -228,16 +250,38 @@ export default function WebShell() {
             setActiveBoard={setActiveBoard}
             appSection={appSection}
             setAppSection={setAppSection}
+            onNewBoard={() => setShowCreateBoard(true)}
           />
           <main style={{ overflow: "auto", borderRight: "1px solid var(--border)",
             display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ textAlign: "center", color: "var(--fg-muted)", fontSize: 15 }}>
               Nessuna board trovata.<br />
               <span style={{ fontSize: 13 }}>Crea una nuova board per iniziare.</span>
+              <div style={{ marginTop: 18 }}>
+                <button
+                  className="tv-btn tv-btn--primary"
+                  style={{ height: 40, padding: "0 20px", fontSize: 14 }}
+                  onClick={() => setShowCreateBoard(true)}
+                >
+                  Crea la tua prima board
+                </button>
+              </div>
             </div>
           </main>
           <aside style={{ background: "var(--surface-2)", borderLeft: "1px solid var(--border)" }} />
         </div>
+
+        {/* Modale creazione board disponibile anche nell'empty state */}
+        {showCreateBoard && me && (
+          <CreateBoardModal
+            ownerId={me.id}
+            onClose={() => setShowCreateBoard(false)}
+            onBoardCreated={async (boardId) => {
+              setShowCreateBoard(false);
+              await reloadBoards(boardId);
+            }}
+          />
+        )}
       </AppContext.Provider>
     );
   }
@@ -313,6 +357,7 @@ export default function WebShell() {
           setActiveBoard={setActiveBoard}
           appSection={appSection}
           setAppSection={setAppSection}
+          onNewBoard={() => setShowCreateBoard(true)}
         />
 
         <main style={{ overflow: "auto", borderRight: "1px solid var(--border)" }}>
@@ -335,6 +380,18 @@ export default function WebShell() {
               const props = await fetchProposals(supabase, activeBoard);
               setProposals(props);
             }
+          }}
+        />
+      )}
+
+      {/* Modale creazione nuova board */}
+      {showCreateBoard && me && (
+        <CreateBoardModal
+          ownerId={me.id}
+          onClose={() => setShowCreateBoard(false)}
+          onBoardCreated={async (boardId) => {
+            setShowCreateBoard(false);
+            await reloadBoards(boardId);
           }}
         />
       )}

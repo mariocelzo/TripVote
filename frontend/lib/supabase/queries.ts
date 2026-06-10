@@ -61,7 +61,7 @@ export async function fetchMyBoards(
   const { data, error } = await sb
     .from("board_members")
     .select(
-      "boards(id, title, cover_url, start_date, end_date, board_members(user_id), proposals(id))"
+      "boards(id, title, cover_url, start_date, end_date, invite_token, board_members(user_id), proposals(id))"
     )
     .eq("user_id", userId);
 
@@ -83,7 +83,37 @@ export async function fetchMyBoards(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       members: (b.board_members ?? []).map((m: any) => m.user_id as string),
       proposalsCount: (b.proposals ?? []).length,
+      inviteToken: b.invite_token ?? undefined,
     }));
+}
+
+// Crea una nuova board con l'utente corrente come owner.
+// Il trigger handle_new_board() aggiunge automaticamente l'owner come membro.
+// La RLS (boards_insert_self_owner) garantisce che owner_id == auth.uid().
+export async function createBoard(
+  sb: SupabaseClient,
+  ownerId: string,
+  input: {
+    title: string;
+    destination?: string | null;
+    startDate?: string | null; // formato ISO "YYYY-MM-DD"
+    endDate?: string | null;
+  }
+): Promise<{ id: string }> {
+  const { data, error } = await sb
+    .from("boards")
+    .insert({
+      owner_id: ownerId,
+      title: input.title,
+      destination: input.destination || null,
+      start_date: input.startDate || null,
+      end_date: input.endDate || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return { id: data.id as string };
 }
 
 // Ritorna i profili degli utenti membri di una board
