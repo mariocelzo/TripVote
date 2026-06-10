@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { Board } from "@/lib/types";
 import { useAppContext } from "@/components/app/AppContext";
 import Icon from "@/components/shared/Icon";
@@ -67,9 +67,21 @@ export default function InvitePage({ board }: Props) {
     }
   }
 
-  const link = `tripvote.app/b/${board.id}-x7k2p9`;
+  // Link di invito reale: usa l'invite_token della board verso la pagina /join.
+  // L'origin è calcolato lato client (in SSR window non esiste).
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  // Se per qualche motivo manca il token, mostriamo un placeholder non cliccabile.
+  const link = board.inviteToken
+    ? `${origin}/join/${board.inviteToken}`
+    : "Link non disponibile";
+  const canShare = Boolean(board.inviteToken);
 
   function handleCopy() {
+    if (!canShare) return;
     navigator.clipboard?.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -192,14 +204,39 @@ export default function InvitePage({ board }: Props) {
         </div>
 
         <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
-          <button className="tv-btn" style={{
-            background: "#25D366", color: "#fff",
-            height: 44, padding: "0 18px", fontSize: 14, borderRadius: "var(--radius-full)",
-          }}>
+          {/* Condividi su WhatsApp: apre wa.me con messaggio precompilato e link reale */}
+          <a
+            href={
+              canShare
+                ? `https://wa.me/?text=${encodeURIComponent(
+                    `Unisciti alla nostra board "${board.title}" su TripVote: ${link}`
+                  )}`
+                : undefined
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="tv-btn"
+            aria-disabled={!canShare}
+            style={{
+              background: "#25D366", color: "#fff",
+              height: 44, padding: "0 18px", fontSize: 14, borderRadius: "var(--radius-full)",
+              display: "inline-flex", alignItems: "center", gap: 8,
+              textDecoration: "none",
+              pointerEvents: canShare ? "auto" : "none",
+              opacity: canShare ? 1 : 0.6,
+            }}
+          >
             <Icon name="wa" size={18} /> Condividi su WhatsApp
-          </button>
-          <button className="tv-btn tv-btn--ghost" style={{ height: 44, padding: "0 16px", fontSize: 14 }}>
-            <Icon name="send" size={16} /> Copia link
+          </a>
+          <button
+            onClick={handleCopy}
+            disabled={!canShare}
+            className="tv-btn tv-btn--ghost"
+            style={{ height: 44, padding: "0 16px", fontSize: 14,
+              opacity: canShare ? 1 : 0.6,
+              cursor: canShare ? "pointer" : "not-allowed" }}
+          >
+            <Icon name="send" size={16} /> {copied ? "Link copiato!" : "Copia link"}
           </button>
         </div>
       </div>

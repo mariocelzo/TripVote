@@ -7,12 +7,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  // Supporta redirect personalizzato tramite query param `next` (es. invite link)
-  const next = searchParams.get("next") ?? "/app";
+  // Supporta redirect personalizzato tramite query param `next` (es. invite link).
+  // Validato anti open-redirect: solo path interni relativi sono accettati.
+  const next = safeNextPath(searchParams.get("next"));
 
   if (code) {
     const cookieStore = await cookies();

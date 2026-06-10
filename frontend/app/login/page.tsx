@@ -5,18 +5,27 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Destinazione post-login, presa dal query param `next` (validata anti open-redirect).
+  // Letta da window per evitare il requisito di Suspense di useSearchParams nel build.
+  const [nextPath, setNextPath] = useState("/app");
 
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("next");
+    setNextPath(safeNextPath(raw));
+  }, []);
 
   // Login con email + password
   async function handleLogin(e: React.FormEvent) {
@@ -31,17 +40,19 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       // router.refresh() forza il middleware a ri-leggere la sessione aggiornata
-      router.push("/app");
+      router.push(nextPath);
       router.refresh();
     }
   }
 
   // OAuth Google — Supabase reindirizza a Google, poi torna su /auth/callback
   async function handleGoogle() {
+    // Propaga `next` al callback così l'utente torna alla pagina richiesta (es. invito)
+    const callback = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callback,
       },
     });
   }
