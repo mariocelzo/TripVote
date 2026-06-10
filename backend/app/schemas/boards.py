@@ -1,6 +1,26 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+
+class JoinBoardRequest(BaseModel):
+    """Richiesta di adesione a una board tramite invite token."""
+
+    token: str
+
+    @field_validator("token")
+    @classmethod
+    def _clean_token(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Token di invito mancante")
+        return v
+
+
+class JoinBoardResponse(BaseModel):
+    board_id: str
+    title: str
+    already_member: bool  # True se l'utente era già membro (operazione idempotente)
 
 
 class ProposalResult(BaseModel):

@@ -1,0 +1,31 @@
+-- =====================================================================
+-- TripVote — Chiusura buco di autorizzazione sul join board
+-- Migration: 0006_secure_join.sql
+--
+-- PROBLEMA (vulnerabilità):
+--   La policy "members_insert_self" (0002) consentiva a QUALSIASI utente
+--   autenticato di inserirsi in board_members controllando solo
+--   `user_id = auth.uid()`, SENZA verificare il possesso dell'invite_token.
+--   Chiunque conoscesse (o indovinasse) un board_id poteva entrare in una
+--   board privata chiamando direttamente la REST API di Supabase, bypassando
+--   l'app. È un'escalation di accesso non autorizzato.
+--
+-- SOLUZIONE:
+--   Il join passa ESCLUSIVAMENTE dal backend (endpoint POST /boards/join),
+--   che usa la service-role key (bypassa RLS) e valida l'invite_token prima
+--   di creare la membership. Rimuoviamo quindi la possibilità per il client
+--   di auto-inserirsi: nessuna policy INSERT per anon/authenticated.
+--
+--   L'owner viene comunque aggiunto automaticamente alla creazione della board
+--   dal trigger handle_new_board() (SECURITY DEFINER), che NON è soggetto a RLS.
+--   Quindi rimuovere la policy non rompe la creazione delle board.
+-- =====================================================================
+
+-- Rimuove la policy permissiva che permetteva il self-insert non autorizzato.
+drop policy if exists "members_insert_self" on public.board_members;
+
+-- Nessuna policy INSERT viene ricreata per i ruoli client (anon/authenticated):
+-- con RLS abilitato e nessuna policy INSERT, ogni insert diretto dal client
+-- viene rifiutato. Gli unici percorsi validi restano:
+--   1) trigger handle_new_board() per l'owner (SECURITY DEFINER)
+--   2) backend service-role per i membri che usano un invite_token valido
