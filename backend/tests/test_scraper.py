@@ -27,6 +27,16 @@ def _mock_redis(mocker):
     mocker.patch("app.services.scraper.get_redis", side_effect=RuntimeError("no redis"))
 
 
+@pytest.fixture(autouse=True)
+def _bypass_ssrf_dns(mocker):
+    """
+    Rende il guard SSRF deterministico: gli host di test (example.com, booking)
+    sono trattati come pubblici senza dipendere dal DNS reale.
+    La logica del guard è verificata a parte in test_ssrf.py.
+    """
+    mocker.patch("app.services.scraper.assert_public_url", return_value=None)
+
+
 @pytest.mark.asyncio
 async def test_scrape_full_opengraph(httpx_mock: HTTPXMock):
     httpx_mock.add_response(
@@ -107,3 +117,25 @@ async def test_scrape_non_html(httpx_mock: HTTPXMock):
     with pytest.raises(HTTPException) as exc:
         await scrape_link_preview("https://example.com/file.pdf")
     assert exc.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_scrape_blocks_internal_url(mocker, httpx_mock: HTTPXMock):
+    """
+    Integrazione SSRF: un URL che risolve a un IP interno deve essere bloccato
+    PRIMA di qualsiasi richiesta HTTP (nessuna chiamata a httpx).
+    """
+    # Disattiva il bypass DNS dell'autouse fixture e simula un host che
+    # risolve a 169.254.169.254 (metadata cloud).
+    from app.core import ssrf
+
+    mocker.patch("app.services.scraper.assert_public_url", side_effect=ssrf.assert_public_url)
+    mocker.patch.object(ssrf, "_default_resolve", return_value=["169.254.169.254"])
+
+    from app.services.scraper import scrape_link_preview
+
+    with pytest.raises(HTTPException) as exc:
+        await scrape_link_preview("http://metadata.evil/latest/meta-data/")
+    assert exc.value.status_code == 400
+    # Nessuna richiesta HTTP deve essere partita
+    assert len(httpx_mock.get_requests()) == 0

@@ -77,20 +77,19 @@ def _make_sb_mock(
     # in base al nome della tabella passato come primo argomento.
     def _table(name: str):
         """Ritorna catena mock specifica per tabella."""
+        # MagicMock propaga gli attributi: select().eq()...single() restituisce
+        # sempre lo stesso mock, quindi basta configurare execute() sulla chain.
         chain = MagicMock()
+        chain.select.return_value = chain
+        chain.eq.return_value = chain
+        chain.single.return_value = chain
 
         if name == "board_members":
-            chain.select.return_value.eq.return_value.eq.return_value.single.return_value.execute.return_value = (
-                member_result
-            )
+            chain.execute.return_value = member_result
         elif name == "boards":
-            chain.select.return_value.eq.return_value.single.return_value.execute.return_value = (
-                board_result
-            )
+            chain.execute.return_value = board_result
         elif name == "profiles":
-            chain.select.return_value.eq.return_value.single.return_value.execute.return_value = (
-                profile_result
-            )
+            chain.execute.return_value = profile_result
 
         return chain
 

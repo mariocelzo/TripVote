@@ -10,11 +10,14 @@ from bs4 import BeautifulSoup
 from fastapi import HTTPException
 
 from app.core.redis import get_redis
+from app.core.ssrf import SSRFError, assert_public_url
 from app.schemas.proposals import PreviewResponse
 
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 3600  # 1 ora
+_MAX_REDIRECTS = 5  # quante 3xx seguire prima di arrenderci
+_MAX_BYTES = 2_000_000  # 2 MB: basta per <head>, evita di scaricare file enormi
 _PRICE_RE = re.compile(r"[\d]+(?:[.,]\d{1,2})?")
 
 
@@ -65,6 +68,57 @@ def _parse_html(html: str) -> PreviewResponse:
     )
 
 
+async def _fetch_with_ssrf_guard(url: str) -> httpx.Response:
+    """
+    Scarica un URL seguendo i redirect MANUALMENTE, validando ogni hop con il
+    guard SSRF. Disabilitiamo follow_redirects di httpx perché un redirect 3xx
+    verso un IP interno bypasserebbe un controllo fatto solo sull'URL iniziale.
+
+    Limita anche la dimensione del corpo scaricato per evitare abusi.
+    """
+    current = url
+    async with httpx.AsyncClient(
+        timeout=8.0,
+        follow_redirects=False,  # li seguiamo noi, validando ogni destinazione
+        headers={"User-Agent": "TripVote-Bot/1.0 (+https://tripvote.me)"},
+    ) as client:
+        for _ in range(_MAX_REDIRECTS + 1):
+            # Valida PRIMA di ogni richiesta (URL iniziale e ogni Location)
+            try:
+                assert_public_url(current)
+            except SSRFError as exc:
+                logger.warning("SSRF bloccato per %s: %s", current, exc)
+                raise HTTPException(status_code=400, detail="URL non consentito") from exc
+
+            try:
+                response = await client.get(current)
+            except httpx.HTTPError as exc:
+                logger.warning("Scraping fallito per %s: %s", current, exc)
+                raise HTTPException(
+                    status_code=400, detail=f"URL non raggiungibile: {exc}"
+                ) from exc
+
+            # Redirect? Risolvi la Location e ricomincia il ciclo (rivalidando)
+            if response.is_redirect and "location" in response.headers:
+                current = str(response.url.join(response.headers["location"]))
+                continue
+
+            if response.status_code >= 500:
+                raise HTTPException(502, detail=f"Il sito ha risposto con {response.status_code}")
+            if response.status_code >= 400:
+                raise HTTPException(400, detail=f"Il sito ha risposto con {response.status_code}")
+
+            # Rifiuta corpi troppo grandi (header Content-Length, se presente)
+            content_length = response.headers.get("content-length")
+            if content_length and int(content_length) > _MAX_BYTES:
+                raise HTTPException(status_code=400, detail="Pagina troppo grande")
+
+            return response
+
+    # Troppi redirect a catena
+    raise HTTPException(status_code=400, detail="Troppi redirect")
+
+
 async def scrape_link_preview(url: str) -> PreviewResponse:
     """
     Scarica e parsa i metadati OG di un URL.
@@ -81,21 +135,7 @@ async def scrape_link_preview(url: str) -> PreviewResponse:
     except Exception as cache_exc:
         logger.debug("Cache miss (Redis down?): %s", cache_exc)
 
-    try:
-        async with httpx.AsyncClient(
-            timeout=8.0,
-            follow_redirects=True,
-            headers={"User-Agent": "TripVote-Bot/1.0 (+https://tripvote.me)"},
-        ) as client:
-            response = await client.get(url)
-    except httpx.HTTPError as exc:
-        logger.warning("Scraping fallito per %s: %s", url, exc)
-        raise HTTPException(status_code=400, detail=f"URL non raggiungibile: {exc}") from exc
-
-    if response.status_code >= 500:
-        raise HTTPException(502, detail=f"Il sito ha risposto con {response.status_code}")
-    if response.status_code >= 400:
-        raise HTTPException(400, detail=f"Il sito ha risposto con {response.status_code}")
+    response = await _fetch_with_ssrf_guard(url)
 
     content_type = response.headers.get("content-type", "")
     if "html" not in content_type:
