@@ -9,6 +9,7 @@
 import React, { useState, FormEvent, CSSProperties } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { apiFetch } from "@/lib/api/client";
+import { parseEuroToCents } from "@/lib/price";
 import type { ProposalType } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -68,7 +69,7 @@ export default function AddProposalModal({
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [category,    setCategory]    = useState<ProposalType>("activity");
-  const [price,       setPrice]       = useState<string>("");    // in cent, come stringa
+  const [price,       setPrice]       = useState<string>("");    // in EURO, come stringa (es. "89,90")
   const [imageUrl,    setImageUrl]    = useState("");
 
   // ── Stato submit finale ──
@@ -94,7 +95,8 @@ export default function AddProposalModal({
       setTitle(preview.title ?? "");
       setDescription(preview.description ?? "");
       setImageUrl(preview.image_url ?? "");
-      setPrice(preview.price_cents != null ? String(preview.price_cents) : "");
+      // Il BE restituisce centesimi → convertiamo in euro per il campo input
+      setPrice(preview.price_cents != null ? String(preview.price_cents / 100) : "");
 
       // Passa al form di completamento
       setStep("form");
@@ -132,8 +134,9 @@ export default function AddProposalModal({
         description: description.trim() || null,
         url:         url.trim() || null,
         image_url:   imageUrl.trim() || null,
-        // Converte la stringa in intero; null se vuoto o non numerico
-        price_cents: price !== "" && !isNaN(Number(price)) ? parseInt(price, 10) : null,
+        // L'utente inserisce EURO (anche con virgola italiana) → convertiamo
+        // in centesimi interi per il DB; null se vuoto o non numerico
+        price_cents: parseEuroToCents(price),
       });
 
       if (error) throw error;
@@ -388,20 +391,20 @@ export default function AddProposalModal({
                   </select>
                 </div>
 
-                {/* Prezzo in centesimi (opzionale) */}
+                {/* Prezzo in euro (opzionale) — convertito in centesimi al salvataggio */}
                 <div>
                   <label style={labelStyle} htmlFor="proposal-price">
-                    Prezzo (centesimi)
+                    Prezzo (€)
                   </label>
                   <input
                     id="proposal-price"
-                    type="number"
-                    min={0}
+                    type="text"
+                    inputMode="decimal"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    placeholder="es. 15000 = €150"
+                    placeholder="es. 150 oppure 89,90"
                     style={inputStyle}
-                    aria-label="Prezzo in centesimi (opzionale)"
+                    aria-label="Prezzo in euro (opzionale)"
                   />
                 </div>
               </div>
