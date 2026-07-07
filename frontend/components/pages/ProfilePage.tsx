@@ -5,10 +5,12 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import type { Proposal, Board } from "@/lib/types";
 import { myVote } from "@/lib/utils";
 import { useAppContext } from "@/components/app/AppContext";
+import { createClient } from "@/lib/supabase/client";
+import { fetchProfileMeta, updateProfile } from "@/lib/supabase/queries";
 import Icon from "@/components/shared/Icon";
 
 interface Props {
@@ -16,9 +18,63 @@ interface Props {
   boards: Board[];    // lista board reali dell'utente
 }
 
+// Formatta la data di iscrizione in italiano (es. "maggio 2026")
+function formatJoinDate(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+  } catch {
+    return null;
+  }
+}
+
 export default function ProfilePage({ proposals, boards }: Props) {
   // Legge utente corrente dal context (dati reali da Supabase Auth + profiles)
-  const { me } = useAppContext();
+  const { me, refreshMe } = useAppContext();
+  const supabase = createClient();
+
+  // Data di iscrizione reale da profiles.created_at
+  const [joinDate, setJoinDate] = useState<string | null>(null);
+
+  // ── Stato modifica nome inline ──
+  const [editing,  setEditing]  = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [saving,   setSaving]   = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!me) return;
+    let cancelled = false;
+    fetchProfileMeta(supabase, me.id)
+      .then(({ createdAt }) => {
+        if (!cancelled) setJoinDate(formatJoinDate(createdAt));
+      })
+      .catch((err) => console.error("Errore caricamento profilo:", err));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id]);
+
+  /* ── Salva il nuovo nome: update DB + refresh del context ── */
+  async function handleSaveName() {
+    if (!me) return;
+    const clean = nameDraft.trim();
+    if (!clean) {
+      setEditError("Il nome non può essere vuoto");
+      return;
+    }
+    setSaving(true);
+    setEditError(null);
+    try {
+      await updateProfile(supabase, me.id, { displayName: clean });
+      // Aggiorna il context così nome/iniziali cambiano ovunque nell'app
+      await refreshMe?.();
+      setEditing(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Errore salvataggio");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Fallback per rendering prima che me sia disponibile
   const userId  = me?.id ?? "";
@@ -50,17 +106,57 @@ export default function ProfilePage({ proposals, boards }: Props) {
             border: "4px solid var(--surface)", boxShadow: "var(--shadow-md)",
           }}>{me?.initials ?? "?"}</div>
           <div style={{ flex: 1, marginBottom: 6 }}>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: 34, fontWeight: 600,
-              letterSpacing: "-0.025em", margin: 0 }}>{me?.name ?? "Utente"}</h1>
+            {editing ? (
+              /* ── Modalità modifica: input + salva/annulla ── */
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); if (e.key === "Escape") setEditing(false); }}
+                  autoFocus
+                  maxLength={80}
+                  aria-label="Nome visualizzato"
+                  style={{
+                    fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600,
+                    letterSpacing: "-0.025em", padding: "4px 10px",
+                    border: "2px solid var(--coral-600)", borderRadius: 8,
+                    background: "var(--bg)", color: "var(--ink-900)",
+                    outline: "none", minWidth: 220,
+                  }}
+                />
+                <button onClick={handleSaveName} disabled={saving}
+                  className="tv-btn tv-btn--primary"
+                  style={{ height: 36, padding: "0 14px", fontSize: 13 }}>
+                  {saving ? "Salvataggio…" : "Salva"}
+                </button>
+                <button onClick={() => { setEditing(false); setEditError(null); }}
+                  className="tv-btn tv-btn--ghost"
+                  style={{ height: 36, padding: "0 12px", fontSize: 13 }}>
+                  Annulla
+                </button>
+                {editError && (
+                  <span role="alert" style={{ fontSize: 12, color: "var(--rose-600)" }}>{editError}</span>
+                )}
+              </div>
+            ) : (
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: 34, fontWeight: 600,
+                letterSpacing: "-0.025em", margin: 0 }}>{me?.name ?? "Utente"}</h1>
+            )}
             <div style={{ fontSize: 13, color: "var(--fg-muted)", marginTop: 4,
               display: "flex", gap: 14, flexWrap: "wrap" }}>
-              {/* Dati profilo statici — TODO: caricare da Supabase profiles */}
-              <span>iscritto a TripVote</span>
+              {/* Data di iscrizione reale da profiles.created_at */}
+              <span>{joinDate ? `iscritto da ${joinDate}` : "iscritto a TripVote"}</span>
             </div>
           </div>
-          <button className="tv-btn tv-btn--ghost" style={{ height: 38, padding: "0 14px", fontSize: 13 }}>
-            <Icon name="edit" size={14} /> Modifica
-          </button>
+          {!editing && (
+            <button
+              onClick={() => { setNameDraft(me?.name ?? ""); setEditing(true); }}
+              className="tv-btn tv-btn--ghost"
+              style={{ height: 38, padding: "0 14px", fontSize: 13 }}
+            >
+              <Icon name="edit" size={14} /> Modifica
+            </button>
+          )}
         </div>
       </div>
 

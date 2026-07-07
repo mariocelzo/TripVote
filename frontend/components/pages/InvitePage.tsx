@@ -11,13 +11,49 @@ import { useAppContext } from "@/components/app/AppContext";
 import Icon from "@/components/shared/Icon";
 import { Avatar } from "@/components/shared/Avatar";
 import { apiFetch } from "@/lib/api/client";
+import { createClient } from "@/lib/supabase/client";
+import { removeBoardMember } from "@/lib/supabase/queries";
 
 interface Props { board: Board; }
 
+// Etichette leggibili per i ruoli di board_members
+const ROLE_LABEL: Record<string, string> = {
+  owner:  "Organizzatore",
+  editor: "Editor",
+  voter:  "Membro",
+};
+
 export default function InvitePage({ board }: Props) {
   const [copied, setCopied] = useState(false);
-  // Legge i membri board dal context per mostrare avatar e nomi reali
-  const { me, boardUsers } = useAppContext();
+  // Legge i membri board dal context per mostrare avatar, nomi e ruoli reali
+  const { me, boardUsers, refreshBoardUsers } = useAppContext();
+  const supabase = createClient();
+
+  // L'utente corrente è owner della board? Determina se può rimuovere membri.
+  const meIsOwner = boardUsers.find((u) => u.id === me?.id)?.role === "owner";
+
+  // ── Stato rimozione membro (conferma inline a due step) ──
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [removing,      setRemoving]      = useState<string | null>(null);
+  const [removeError,   setRemoveError]   = useState<string | null>(null);
+
+  /* ── Rimuove un membro: delete su board_members + refresh del context.
+        La RLS consente la delete solo a owner o al membro stesso. ── */
+  async function handleRemove(userId: string) {
+    setRemoving(userId);
+    setRemoveError(null);
+    try {
+      await removeBoardMember(supabase, board.id, userId);
+      await refreshBoardUsers?.();
+      setConfirmRemove(null);
+    } catch (err) {
+      setRemoveError(
+        err instanceof Error ? `Rimozione fallita: ${err.message}` : "Rimozione fallita"
+      );
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   // --- Stato per la sezione "Invita via email" ---
   // Input email separati da virgola/punto e virgola/spazio
@@ -241,7 +277,7 @@ export default function InvitePage({ board }: Props) {
         </div>
       </div>
 
-      {/* Membri — usa boardUsers dal context (dati reali da Supabase) */}
+      {/* Membri — usa boardUsers dal context con ruoli reali da board_members */}
       <div className="tv-card" style={{ padding: 28, marginTop: 20 }}>
         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 16, color: "var(--ink-700)" }}>
           Membri · {boardUsers.length}
@@ -252,20 +288,56 @@ export default function InvitePage({ board }: Props) {
             borderBottom: i < boardUsers.length - 1 ? "1px solid var(--border)" : "none" }}>
             <Avatar user={user} size={36} ring={false} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{user.name}</div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>
+                {user.name}
+                {user.id === me?.id && (
+                  <span style={{ fontSize: 11, color: "var(--fg-muted)", fontWeight: 500 }}> (tu)</span>
+                )}
+              </div>
               <div style={{ fontSize: 12, color: "var(--fg-muted)" }}>
-                {/* Indica "Admin" per l'utente corrente, "Membro" per gli altri */}
-                {user.id === me?.id ? "Admin" : "Membro"}
+                {/* Ruolo reale dalla tabella board_members */}
+                {ROLE_LABEL[user.role ?? "voter"]}
               </div>
             </div>
-            {user.id !== me?.id && (
-              <button style={{ fontSize: 12, color: "var(--fg-muted)",
-                background: "none", border: "none", cursor: "pointer" }}>
-                Rimuovi
-              </button>
+            {/* Rimuovi: visibile solo all'owner, mai per sé stesso o per altri owner.
+                La RLS members_delete_self_or_by_owner fa comunque enforcement lato DB. */}
+            {meIsOwner && user.id !== me?.id && user.role !== "owner" && (
+              confirmRemove === user.id ? (
+                <span style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "var(--ink-700)" }}>Rimuovere?</span>
+                  <button
+                    onClick={() => handleRemove(user.id)}
+                    disabled={removing === user.id}
+                    style={{ fontSize: 12, fontWeight: 700, color: "var(--rose-600)",
+                      background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    {removing === user.id ? "…" : "Sì"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmRemove(null)}
+                    style={{ fontSize: 12, color: "var(--fg-muted)",
+                      background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    No
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={() => setConfirmRemove(user.id)}
+                  style={{ fontSize: 12, color: "var(--fg-muted)",
+                    background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Rimuovi
+                </button>
+              )
             )}
           </div>
         ))}
+        {removeError && (
+          <div role="alert" style={{ marginTop: 10, fontSize: 13, color: "var(--rose-600)" }}>
+            {removeError}
+          </div>
+        )}
       </div>
     </div>
   );

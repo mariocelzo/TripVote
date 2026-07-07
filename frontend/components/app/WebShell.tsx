@@ -55,6 +55,17 @@ interface BoardResultsResponse {
   winners: string[];
 }
 
+// Costruisce l'oggetto User per l'utente corrente: colore e iniziali
+// derivati deterministicamente dall'UUID (stessa palette di userColor in queries).
+function buildMeUser(uid: string, name: string): User {
+  const colors = ["#DD5C36","#149478","#2E3A8C","#C68410","#C0364B","#0F6E5C","#7A4FBF"];
+  let hash = 0;
+  for (const c of uid) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+  const color = colors[Math.abs(hash) % colors.length];
+  const inits = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+  return { id: uid, name, initials: inits, color };
+}
+
 export default function WebShell() {
   const [proposals,      setProposals]      = useState<Proposal[]>([]);
   const [boards,         setBoards]         = useState<Board[]>([]);
@@ -100,16 +111,8 @@ export default function WebShell() {
           return;
         }
 
-        // Calcola colore avatar e iniziali deterministicamente dal UUID
-        const colors = ["#DD5C36","#149478","#2E3A8C","#C68410","#C0364B","#0F6E5C","#7A4FBF"];
-        let hash = 0;
-        for (const c of uid) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
-        const color = colors[Math.abs(hash) % colors.length];
-        const name = profileData.display_name as string;
-        const inits = name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
-
-        const meUser: User = { id: uid, name, initials: inits, color };
-        setMe(meUser);
+        // Colore avatar e iniziali derivati deterministicamente dall'UUID
+        setMe(buildMeUser(uid, profileData.display_name as string));
 
         // Carica le board dell'utente
         const loadedBoards = await fetchMyBoards(supabase, uid);
@@ -190,6 +193,28 @@ export default function WebShell() {
     [me]
   );
 
+  /* ── Ricarica il profilo utente (dopo modifica nome in ProfilePage) ── */
+  const refreshMe = useCallback(async () => {
+    if (!me) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", me.id)
+      .single();
+    if (data?.display_name) {
+      setMe(buildMeUser(me.id, data.display_name as string));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id]);
+
+  /* ── Ricarica i membri della board attiva (dopo rimozione da InvitePage) ── */
+  const refreshBoardUsers = useCallback(async () => {
+    if (!activeBoard) return;
+    const members = await fetchBoardMembers(supabase, activeBoard);
+    setBoardUsers(members);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeBoard]);
+
   /* ── Ricarica la lista board (dopo creazione o join) e seleziona quella indicata ── */
   const reloadBoards = useCallback(
     async (selectId?: string) => {
@@ -237,7 +262,7 @@ export default function WebShell() {
   /* ── Nessuna board disponibile ── */
   if (boards.length === 0) {
     return (
-      <AppContext.Provider value={{ me, boardUsers }}>
+      <AppContext.Provider value={{ me, boardUsers, refreshMe, refreshBoardUsers }}>
         <div style={{
           display: "grid",
           gridTemplateColumns: "260px 1fr 360px",
@@ -341,7 +366,7 @@ export default function WebShell() {
 
   return (
     // Fornisce me e boardUsers a tutti i componenti figli tramite context
-    <AppContext.Provider value={{ me, boardUsers }}>
+    <AppContext.Provider value={{ me, boardUsers, refreshMe, refreshBoardUsers }}>
       <div
         className="tv-web-shell"
         style={{
