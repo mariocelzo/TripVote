@@ -123,7 +123,7 @@ export async function fetchBoardMembers(
 ): Promise<User[]> {
   const { data, error } = await sb
     .from("board_members")
-    .select("profiles(id, display_name, avatar_url)")
+    .select("role, profiles(id, display_name, avatar_url)")
     .eq("board_id", boardId);
 
   if (error) throw error;
@@ -131,15 +131,78 @@ export async function fetchBoardMembers(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? [])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((m: any) => m.profiles)
-    .filter(Boolean)
+    .filter((m: any) => Boolean(m.profiles))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((p: any): User => ({
-      id: p.id as string,
-      name: p.display_name as string,
-      initials: initials(p.display_name as string),
-      color: userColor(p.id as string),
+    .map((m: any): User => ({
+      id: m.profiles.id as string,
+      name: m.profiles.display_name as string,
+      initials: initials(m.profiles.display_name as string),
+      color: userColor(m.profiles.id as string),
+      // Ruolo nella board (owner/editor/voter) — usato da InvitePage
+      role: m.role as User["role"],
     }));
+}
+
+// Rimuove un membro dalla board. La RLS (members_delete_self_or_by_owner)
+// consente la delete solo all'owner della board o al membro stesso:
+// qualunque altro tentativo fallisce lato DB, non solo lato UI.
+export async function removeBoardMember(
+  sb: SupabaseClient,
+  boardId: string,
+  userId: string
+): Promise<void> {
+  const { error } = await sb
+    .from("board_members")
+    .delete()
+    .eq("board_id", boardId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+// Aggiorna il profilo dell'utente corrente (nome visualizzato e/o preferenze).
+// La RLS (profiles_update_own) garantisce che si possa aggiornare solo sé stessi.
+export async function updateProfile(
+  sb: SupabaseClient,
+  userId: string,
+  changes: { displayName?: string; prefs?: Record<string, boolean> }
+): Promise<void> {
+  const payload: Record<string, unknown> = {};
+
+  if (changes.displayName !== undefined) {
+    const clean = changes.displayName.trim();
+    // Il DB ha display_name NOT NULL: blocchiamo qui con errore chiaro
+    if (!clean) throw new Error("Il nome non può essere vuoto");
+    payload.display_name = clean;
+  }
+  if (changes.prefs !== undefined) {
+    payload.prefs = changes.prefs;
+  }
+
+  // Nessun campo da aggiornare → no-op senza round-trip
+  if (Object.keys(payload).length === 0) return;
+
+  const { error } = await sb.from("profiles").update(payload).eq("id", userId);
+  if (error) throw error;
+}
+
+// Metadati del profilo per ProfilePage/SettingsPage: data iscrizione + prefs
+export async function fetchProfileMeta(
+  sb: SupabaseClient,
+  userId: string
+): Promise<{ createdAt: string | null; prefs: Record<string, boolean> }> {
+  const { data, error } = await sb
+    .from("profiles")
+    .select("created_at, prefs")
+    .eq("id", userId)
+    .single();
+
+  if (error) throw error;
+
+  return {
+    createdAt: (data?.created_at as string | undefined) ?? null,
+    prefs: (data?.prefs as Record<string, boolean> | null | undefined) ?? {},
+  };
 }
 
 // Ritorna le proposte di una board con i voti di tutti i membri

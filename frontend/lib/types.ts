@@ -5,11 +5,14 @@ export type VoteKind = "yes" | "maybe" | "no";
 
 export type ProposalType = "hotel" | "flight" | "restaurant" | "activity" | "pin";
 
+export type BoardRole = "owner" | "editor" | "voter";
+
 export interface User {
   id: string;
   name: string;
   initials: string;
   color: string;
+  role?: BoardRole; // ruolo nella board corrente (presente quando caricato da fetchBoardMembers)
 }
 
 export interface Board {
